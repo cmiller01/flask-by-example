@@ -8,6 +8,7 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from stop_words import stops
 from collections import Counter
 from bs4 import BeautifulSoup
+import json
 
 from rq import Queue
 from rq.job import Job
@@ -71,8 +72,6 @@ def index():
     if request.method == "POST":
         # get url that the person has entered
         url = request.form['url']
-        # if 'http://' not in url[:7]:
-        #    url = 'http://' + url
         job = q.enqueue_call(
             func=count_and_save_words, args=(url,), result_ttl=5000
         )
@@ -95,6 +94,18 @@ def get_results(job_key):
         return jsonify(results)
     else:
         return "Nay!", 202
+
+@app.route('/start', methods=['POST'])
+def get_counts():
+    # get url
+    data = json.loads(request.data.decode())
+    url = data["url"]
+    # start job
+    job = q.enqueue_call(
+        func=count_and_save_words, args=(url,), result_ttl=5000
+    )
+    # return created job id
+    return job.get_id()
 
 if __name__ == '__main__':
     app.run()
